@@ -37,13 +37,15 @@ function Upload() {
 
     const imageList = []; // 업로드한 파일들을 저장하는 배열
     //const [glbFile, setglbFile] = useState(null);
-    const glbFile=[];
+    const glbFile = [];
     const [values, setValues] = useState({
         title: "",
         content: "",
         startPrice: "",
         endTime: "",
         location: "",
+        world: "",
+        type: "",
         fbx: ""
     });
 
@@ -64,17 +66,13 @@ function Upload() {
             });
     }
 
-    /*const onSaveFiles = (e) => {
-        setglbFile(e.target.value);
-        console.log(e.target.value);
-    }*/
     const onSaveFiles = (e) => {
         const uploadFiles = Array.prototype.slice.call(e.target.files); // 파일선택창에서 선택한 파일들
 
         uploadFiles.forEach((uploadFile) => {
             console.log(uploadFile)
             glbFile.push(uploadFile);
-           
+
         });
     };
 
@@ -142,6 +140,8 @@ function Upload() {
         formData.append('location', values.location);
         formData.append('startPrice', values.startPrice);
         formData.append('content', values.content);
+        formData.append('world', values.world);
+        formData.append('type', values.type);
 
         upload(formData)
             .then((response) => {
@@ -262,16 +262,20 @@ function Upload() {
                                 <td><input type="text" id="location" name="location" onChange={handleChange} value={values.location} /></td>
                             </tr>
                             <tr>
+                                <td><label htmlFor="world">월드 이름</label></td>
+                                <td><input type="text" id="world" name="world" onChange={handleChange} value={values.world} /></td>
+                            </tr>
+                            <tr>
+                                <td><label htmlFor="type">상품 타입</label></td>
+                                <td><input type="text" id="type" name="type" onChange={handleChange} value={values.type} /></td>
+                            </tr>
+                            <tr>
                                 <td>Glb</td>
-                                <td><input type="file" id="glb" name="glb" onChange={e => onSaveFiles(e)}></input></td>
+                                <td><input type="file"  id="glb" name="glb" onChange={e => onSaveFiles(e)}></input></td>
                             </tr>
                             <tr>
                                 <td>Image</td>
-                                <td><input type="file" id="glb" name="image" onChange={e => onSaveFiles4(e)}></input></td>
-                            </tr>
-                            <tr>
-                                <td></td>
-                                <td></td>
+                                <td><input type="file" multiple="multiple" id="glb" name="image" onChange={e => onSaveFiles4(e)}></input></td>
                             </tr>
                             <div className="form-group" style={{ minWidth: "25vw" }}>
                                 <button type="submit" onClick={onFileUpload} style={{ width: "100%" }}>등록</button>

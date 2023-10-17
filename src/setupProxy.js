@@ -8,6 +8,10 @@ module.exports = function(app){
       changeOrigin: true
     })
   )
+  app.use(
+    "ws",
+    createProxyMiddleware({ target: "http://taonas.iptime.org:8080", ws: true })
+   )
   /*app.use(
     createProxyMiddleware('/다른context', {
       target: 'https://다른호스트',

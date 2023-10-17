@@ -1,7 +1,8 @@
-import { useLinkClickHandler, useLocation } from "react-router-dom";
-import { useEffect, useState, useRef } from "react";
+import { useLinkClickHandler, useLocation} from "react-router-dom";
+import { useEffect, useState, useRef ,Suspense } from "react";
 import { useSelector, shallowEqual } from 'react-redux';
 import axios from "axios";
+import * as StompJs from "@stomp/stompjs";
 
 import { Search, Download } from "./AuthAPI";
 import ShowResult from "./ShowResult";
@@ -24,12 +25,79 @@ const Result = () => {
 
     const price = useRef(0);
     bid_URL = JSON.stringify(URL);
+
+
+
+    let [client, changeClient] = useState(null);
+
+    const [changeprice, setchangeprice] = useState(0);
+
+    const connect = () => {
+        // 소켓 연결
+        try {
+            const clientdata = new StompJs.Client({
+                brokerURL: "ws://taonas.iptime.org:8080/ws",
+                debug: function (str) {
+                    console.log(str);
+                },
+                // reconnectDelay: 5000, // 자동 재 연결
+                // heartbeatIncoming: 4000,
+                //heartbeatOutgoing: 4000,
+            });
+
+            // 구독
+            clientdata.onConnect = function () {
+                clientdata.subscribe("/sub/changePrice", callback);
+                console.log("connected");
+            };
+
+            clientdata.activate(); // 클라이언트 활성화
+            changeClient(clientdata); // 클라이언트 갱신
+        } catch (err) {
+            console.log(err);
+        }
+    };
+
+    const disConnect = () => {
+        // 연결 끊기
+        if (client === null) {
+            return;
+        }
+        client.deactivate();
+    };
+    // 콜백함수 => ChatList 저장하기
+    const callback = function (message) {
+        if (message.body) {
+            let msg = JSON.parse(message.body);
+
+            console.log("msg : " + `${JSON.stringify(msg)}`);
+            console.log("msg : " + msg.text);
+            console.log("msg1 : " + msg.text.split("-")[1]);
+            setchangeprice(msg.text.split("-")[1]);
+        }
+        console.log(message);
+    };
+
+    useEffect(() => {
+        connect();
+        return () => disConnect();
+    }, []);
+
+
+    const Showprice = ({ item }) => {
+        if (changeprice == 0) {
+            return item.currentPrice;
+        }
+        else if (changeprice != 0) {
+            return changeprice;
+        }
+        return item.currentPrice;
+    }
+
+
     useEffect(() => {
         J_Url = `${JSON.stringify(Url.pathname)}`;
-        if (!mounted.current) {
-            mounted.current = true;
-        }
-        else {
+
             Search.get(`${JSON.parse(J_Url)}`)
                 .then((response) => {
                     if (item !== prevItem) {
@@ -38,6 +106,7 @@ const Result = () => {
                         setPrevItem(response.data);
                         console.log(J_Url);
                         console.log(J_Url.slice(-2, -1));
+                        console.log("split : " + J_Url.split('/')[2].slice(0, -1));
 
                         /*console.log("item : " + `${JSON.stringify(item)}`);
                         console.log("item1 : " + item);
@@ -48,7 +117,7 @@ const Result = () => {
                 .catch((error) => {
                     console.log(error);
                 });
-        }
+        
     }, [Url, item]);
 
     function clickHandler() {
@@ -57,10 +126,9 @@ const Result = () => {
 
     function ShowImage() {
         let arr = [];
-        let imagecount = item.fileCount;
-        for (let i = 2; i <= imagecount; i++) {
+        let imagecount = item.imgCount;
+        for (let i = 1; i <= imagecount; i++) {
             arr.push(<img src={"http://taonas.iptime.org:8080/item/image/" + item.id + "/" + i}
-                onClick={() => { download(item, i) }}
                 alt="image from spring" />)
         }
         return (arr);
@@ -68,9 +136,11 @@ const Result = () => {
 
     function ShowGlb() {
         if (item.id === undefined) {
-            return (<div>aaa</div>);
+            return (
+            <div>Loading...</div>
+            );
         }
-        else {
+        else if(item.id) {
             const gltf = useLoader(GLTFLoader, "http://taonas.iptime.org:8080/item/glb/" + item.id + "")
             return (
                 <Canvas camera={{ position: [-0.5, 1, 2] }} shadows>
@@ -89,28 +159,22 @@ const Result = () => {
                 </Canvas>
             );
         }
+        return ;
     }
 
-    function Downloadbtn() {
+    /*function Downloadbtn() {
         return <button onClick={() => { window.location.href = "http://taonas.iptime.org:8080/item/download/" + item.id + "/" + 1 }}>download</button>
     }
 
     function download(item, i) {
         console.log("id : " + i);
         window.location.href = "http://taonas.iptime.org:8080/item/download/" + item.id + "/" + i;
-    }
+    }*/
 
     function bidHandler() {
         console.log("bid");
 
     }
-    /*const handleChange = async (e) => {
-        price.current = e.target.value;
-        setValues({
-            ...values,
-            [e.target.id]: e.target.value,
-        });
-    }*/
     const onChange = (e: React.ChangeEvent<HTMLInputElement>, type: React.MutableRefObject<string>) => {
         const value = e.target.value;
         type.current = value;
@@ -125,13 +189,14 @@ const Result = () => {
                 console.log(error);
             });
     }*/
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         console.log(price.current);
 
         axios({
             method: 'POST',
-            url: `http://taonas.iptime.org:8080/bid/` + J_Url.slice(-2, -1),
+            url: `http://taonas.iptime.org:8080/bid/` + J_Url.split('/')[2].slice(0, -1),
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${ACCESS_TOKEN}`, // 이것 필수
@@ -144,21 +209,12 @@ const Result = () => {
         });
     };
 
-
-    /*Bid.post(`/bid`+"/"+J_Url.slice(-2,-1))
-    .then((response) => {
-        console.log(response);
-    })
-    .catch((error) => {
-        console.log(error);
-    });*/
     return (
         <div>
             <table>
                 <tbody>
                     <tr>
                         <td><ShowGlb /></td>
-                        <td><Downloadbtn /></td>
                     </tr>
                     <tr>
                         <td><ShowImage /></td>
@@ -193,8 +249,10 @@ const Result = () => {
                     </tr>
                     <tr>
                         <td>currentPrice : </td>
-                        <td>{item.currentPrice}</td>
+                        <td><Showprice item={item} /></td>
                     </tr>
+
+
                     <tr>
                         <td>endTime : </td>
                         <td>{item.endTime}</td>
